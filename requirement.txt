@@ -1,0 +1,15 @@
+APScheduler==3.6.0
+Click==7.0
+Flask==1.0.2
+Flask-APScheduler==1.11.0
+funcsigs==1.0.2
+futures==3.2.0
+itsdangerous==1.1.0
+gunicorn==19.9.0
+Jinja2==2.10.1
+MarkupSafe==1.1.1
+python-dateutil==2.8.0
+six==1.12.0
+tzlocal==1.5.1
+Werkzeug==0.15.4
+pytz==2019.1

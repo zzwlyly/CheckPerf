@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+    <meta charset="utf-8" content=""/>
+    <title>vClusters性能监控平台</title>
+    <link href="{{ url_for('static',filename='img/logo.ico') }}" rel="icon" type="image/x-ico">
+    <script type="text/javascript" src="{{ url_for('static',filename='js/jquery-3.3.1.js') }}"></script>
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='css/bootstrap.min.css') }}">
+
+    <script type="text/javascript" src="{{ url_for('static',filename='js/bootstrap.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/echarts-all-3.js') }}"></script>
+
+</head>
+<body>
+<script type="application/javascript">
+    var timer;
+    var chartDist = {};
+    $(document).ready(function () {
+        changC('/disk/')
+    });
+
+    function changC(val) {
+        var time = $("#time option:selected").val();
+        if (val === '/disk/') {
+            for (var key in chartDist) {
+                $("#main").siblings("#" + key).remove();
+            }
+            if (timer) {
+                clearInterval(timer);
+            }
+
+            get_data(val, 1, time);
+
+            timer = setInterval(function () {
+                get_data(val, 2, time)
+            }, 10000);
+        }
+        else if (val === '/network/') {
+            if (timer) {
+                clearInterval(timer);
+            }
+            for (var key in chartDist) {
+                $("#main").siblings("#" + key).remove();
+            }
+            get_data(val, 1, time, "MB/s");
+
+            timer = setInterval(function () {
+                get_data(val, 2, time, "MB/s")
+            }, 10000);
+
+        }
+        else if (val === '/cpu/') {
+            if (timer) {
+                clearInterval(timer);
+            }
+            for (var key in chartDist) {
+                $("#main").siblings("#" + key).remove();
+            }
+            get_data(val, 1, time);
+
+            timer = setInterval(function () {
+                get_data(val, 2, time)
+            }, 10000);
+        }
+        else if (val === '/mem/') {
+            if (timer) {
+                clearInterval(timer);
+            }
+            for (var key in chartDist) {
+                $("#main").siblings("#" + key).remove();
+            }
+            get_data(val, 1, time);
+
+            timer = setInterval(function () {
+                get_data(val, 2, time)
+            }, 10000);
+        }
+    }
+
+    function get_data(val, flag, time, yAxis_name = '') {
+        var chartdata = {};
+        var panlist = [];
+        var timelist = [];
+        $.ajax({
+            type: "GET", url: val + "?flag=" + time, dataType: "json",
+            success: function (data) {
+                var datalist = data.data;
+                var tlist = datalist[0].data;
+                tlist.map(e => {
+                    timelist.push(e.time)
+                });
+                datalist.map(e => {
+                    panlist.push(e.name)
+                });
+                panlist.map(e => {
+                    chartdata[e] = {}
+                });
+                var dataKey = tlist[0]
+                var legendlist = []
+                for (var key in dataKey) {
+                    if (key === 'name' || key === 'time') {
+                        delete key
+                    } else {
+                        legendlist.push(key)
+                    }
+
+                }
+
+                for (var key in chartdata) {
+                    for (var key2 in dataKey) {
+                        chartdata[key][key2] = []
+                    }
+                }
+                var dataMsg = {}
+                datalist.map(e => {
+                    dataMsg[e.name] = e.data
+                })
+                panlist.map(e => {
+                    dataMsg[e].map(el => {
+                        for (var key in el) {
+                            if (key === 'name' || key === 'time') {
+                                delete chartdata[e][key]
+                            } else {
+                                chartdata[e][key].push(el[key])
+                            }
+                        }
+                    })
+                })
+                var datas = {};
+                panlist.map(e => {
+                    datas[e] = []
+                    legendlist.map(key => {
+                        datas[e].push({
+                            "name": key,
+                            "type": "line",
+                            "data": chartdata[e][key]
+                        })
+                    })
+                });
+                if (flag === 1) {
+                    panlist.map(e => {
+                        $("#main").after("<div id='" + e + "' style='height: 300px; padding: 5px; '>e</div>");
+                        chartDist[e] = echarts.init(document.getElementById(e));
+                    });
+                }
+
+                for (var key in chartDist) {
+                    chartDist[key].setOption({
+                        toolbox: {
+                            show: true,
+                            showTitle: false,
+                            right: "100",
+                            feature: {
+                                saveAsImage: {show: true}
+                            }
+
+                        },
+
+                        title: {
+                            text: key,
+                            x: "center"
+                        },
+                        tooltip: {
+                            trigger: 'axis'
+                        },
+                        legend: {
+                            data: legendlist,
+                            x: 'center',
+                            y: 'bottom'
+                        },
+                        calculable: true,
+                        xAxis: [
+                            {
+                                type: 'category',
+                                boundaryGap: false,
+                                data: timelist,
+                            }
+                        ],
+                        yAxis: [
+                            {
+                                type: 'value',
+                                boundaryGap: [0.0, 0.5],
+                                name: yAxis_name
+                            }
+                        ],
+                        series: datas[key]
+                    })
+                }
+            },
+            error: function (jqXHR) {
+                console.log("Error: " + jqXHR.status);
+            }
+
+        });
+    }
+
+</script>
+<div style="margin: 30px">
+    <button type="button" class="btn btn-default" onclick="changC('/disk/')">磁盘</button>
+    <button type="button" class="btn btn-default" onclick="changC('/network/')">网卡</button>
+    <button type="button" class="btn btn-default" onclick="changC('/cpu/')">CPU</button>
+    <button type="button" class="btn btn-default" onclick="changC('/mem/')">内存</button>
+    <label>
+        <select id="time" name="time">
+            <option value="1">10min</option>
+            <option value="0">60min</option>
+        </select>
+    </label>
+    <div id="main"></div>
+</div>
+
+
+</body>
+</html>
